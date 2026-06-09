@@ -347,7 +347,7 @@ public partial class CoresService
                                 if (!Directory.Exists(slotDirectory))
                                     Directory.CreateDirectory(slotDirectory);
                                 string slotPath = Path.Combine(slotDirectory, fileName);
-                                ArchiveFile archiveFile = this.archiveService.GetArchiveFile(fileName);
+                                ArchiveFile archiveFile = this.archiveService.FindArchiveFile(fileName, filePath);
 
                                 if (File.Exists(slotPath) && CheckCrc(slotPath, archiveFile))
                                 {
@@ -357,7 +357,29 @@ public partial class CoresService
                                 else
                                 {
                                     WriteMessage($"Downloading: {slot.filename}...");
-                                    bool result = this.archiveService.DownloadArchiveFile(archive, archiveFile, slotDirectory);
+
+                                    // DownloadArchiveFile appends the archive entry's name to the
+                                    // destination, and that name may itself be subdirectory-qualified
+                                    // (e.g. "somemod/pak0.pak"). Strip as many trailing components from
+                                    // the target as the entry name carries so the file always lands at
+                                    // slotPath, whether the archive stores it flat or under a subdirectory.
+                                    string downloadDirectory = slotDirectory;
+
+                                    if (archiveFile != null)
+                                    {
+                                        int archiveNameDepth = archiveFile.name
+                                            .Replace('\\', '/')
+                                            .Trim('/')
+                                            .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
+                                            .Length;
+
+                                        downloadDirectory = slotPath;
+
+                                        for (int i = 0; i < archiveNameDepth; i++)
+                                            downloadDirectory = Path.GetDirectoryName(downloadDirectory) ?? downloadDirectory;
+                                    }
+
+                                    bool result = this.archiveService.DownloadArchiveFile(archive, archiveFile, downloadDirectory);
 
                                     if (result)
                                     {

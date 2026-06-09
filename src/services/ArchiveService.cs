@@ -62,6 +62,30 @@ public class ArchiveService : Base
         return files.FirstOrDefault(x => x.name == fileName);
     }
 
+    // Look up an archive entry for a file that may live in a subdirectory.
+    // Custom asset archives can host files under a subdirectory (e.g.
+    // "somemod/pak0.pak") so that mods which reuse a filename don't collide in a
+    // single flat directory. Prefer an exact match on the subdirectory-qualified
+    // path, then fall back to a filename-only match so existing flat archives
+    // keep working unchanged.
+    public ArchiveFile FindArchiveFile(string fileName, string subDirectory, string coreIdentifier = null)
+    {
+        var files = this.GetArchiveFiles(coreIdentifier).ToList();
+
+        if (!string.IsNullOrEmpty(subDirectory))
+        {
+            string relativePath = $"{subDirectory.Replace('\\', '/').Trim('/')}/{fileName}";
+
+            var match = files.FirstOrDefault(x =>
+                string.Equals(x.name?.Replace('\\', '/'), relativePath, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+                return match;
+        }
+
+        return files.FirstOrDefault(x => x.name == fileName);
+    }
+
     // ReSharper disable once MemberCanBePrivate.Global
     public IEnumerable<ArchiveFile> GetArchiveFiles(string coreIdentifier)
     {
